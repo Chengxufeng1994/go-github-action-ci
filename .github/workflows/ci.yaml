@@ -57,16 +57,16 @@ jobs:
       - name: Extract Version
         id: version_step
         run: |
-          echo "##[set-output name=version;]VERSION=${GITHUB_REF#$"refs/tags/v"}"
-          echo "##[set-output name=version_tag;]$GITHUB_REPOSITORY:${GITHUB_REF#$"refs/tags/v"}"
+          echo "##[set-output name=version_tag;]$GITHUB_REPOSITORY:${GITHUB_REF#$"refs/tags/v*"}"
           echo "##[set-output name=latest_tag;]$GITHUB_REPOSITORY:latest"
+          echo "version=$(git describe --tags --always --match='v*' main)" >> $GITHUB_OUTPUT
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Print Version
         run: |
           echo ${{steps.version_step.outputs.version_tag}}
           echo ${{steps.version_step.outputs.latest_tag}}
-          echo 'GITHUB_REPOSITORY: $GITHUB_REPOSITORY'
+          echo ${{steps.version_step.outputs.version}}
           echo ${{steps.version_step.outputs.sha_short}}
 
       - name: PrepareReg Names
@@ -75,6 +75,7 @@ jobs:
           echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
           echo LATEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
           echo SHA_SHORT=$(echo ${{ steps.version_step.outputs.sha_short }}) >> $GITHUB_ENV
+          echo VERSION=$(echo ${{ steps.version_step.outputs.version }}-${{ steps.version_step.outputs.sha_short }} ) >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -91,4 +92,5 @@ jobs:
       - name: Build the docker image
         id: build-docker-image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/go-github-action-ci:${{ env.SHA_SHORT }} .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/go-github-action-ci:${{ env.SHA_SHORT }} --build-arg VERSION=${{ env.VERSION }} .
+          docker images
